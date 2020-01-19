@@ -1,13 +1,13 @@
 # SPLIT
 Original implementation of _**S**eparated **P**aths for **L**ocal and Global **I**nforma**t**ion framework_ (**SPLIT**) in TensorFlow 2.
 
-***Explicit Local and Global Representation Disentanglement Framework with Applications in Deep Clustering and Unsupervised Object Detection.***
+***An Explicit Local and Global Representation Disentanglement Framework with Applications in Deep Clustering and Unsupervised Object Detection.***
 
 Rujikorn Charakorn, Yuttapong Thawornwattana, Sirawaj Itthipuripat, Poramate Manoonpong, and Nat Dilokthanakul
 
 ___
 
-<p align="center" style="bold"><b> Work in progress </b></p>
+
 
 ## Installation
 
@@ -15,9 +15,14 @@ Tested on Ubuntu 18.04 and Linux Mint 19.2 with Python 3.6
 
 `pip install -r requirements.txt`
 
-## SPLIT-VAE
 
-### Generation
+## Experiments
+
+All results will be in `output/` folder.
+___
+### SPLIT-VAE
+
+#### Generation
 - SVHN
 
 ```
@@ -32,7 +37,7 @@ cd vae
 python main.py --beta 120 --patch_size 8 --dataset celeba64 -no_label
 ```
 
-### Style transfer and reconstruction accuracy table (SVHN)
+#### Style transfer and reconstruction accuracy table (SVHN)
 - SVHN
 
 ```
@@ -46,11 +51,11 @@ python main.py --beta 1 --patch_size 1
 cd vae
 python main.py --beta 30 --patch_size 8 --dataset celeba64 -no_label
 ```  
-
-## GMVAE and SPLIT-GMVAE
+___
+### GMVAE and SPLIT-GMVAE
 
 :soon:
-
-## SPAIR and SPLIT-SPAIR
+___
+### SPAIR and SPLIT-SPAIR
 
 :soon:

@@ -311,7 +311,6 @@ def train_local_global_autoencoder(model, optimizer, dataset, train_dataset, tes
         train_step(model, images, optimizer)
 
         if (step%10000==0):
-            print('currect learning rate:', optimizer._decayed_lr(tf.float32))
             print('Training time: {:.2f}'.format(time.time()-start))
 
             start = time.time()
