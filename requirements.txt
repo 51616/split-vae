@@ -1,7 +1,9 @@
-tensorflow_probability==0.7.0
-wget==3.2
-matplotlib==3.1.1
-scipy==1.2.1
 scikit_image==0.15.0
-tensorflow_gpu==2.0.0
+wget==3.2
+tensorflow_addons==0.6.0
+matplotlib==3.1.1
+tensorflow_probability==0.7.0
 numpy==1.16.5
+tensorflow_gpu==2.0.0
+requests==2.21.0
+scipy==1.2.1
