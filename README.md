@@ -9,6 +9,11 @@ ___
 
 <p align="center" style="bold"><b> Work in progress </b></p>
 
+## Installation
+
+Tested on Ubuntu 18.04 and Linux Mint 19.2 with Python 3.6
+
+`pip install -r requirements.txt`
 
 ## SPLIT-VAE
 
