@@ -6,6 +6,7 @@ from scipy.io import loadmat
 from glob import glob
 import wget
 import zipfile
+from utils import download_file_from_google_drive
 
 def get_dataset(dataset='mnist', get_label=False):
 	if dataset.upper()=='SVHN':
@@ -109,9 +110,8 @@ def get_celeba_tfrec(size):
 		print('data folder doesn\'t exist, create data folder')
 		Path(data_path).mkdir(parents=True, exist_ok=True)
 	if not glob(zip_data_path):
-		print('Please download CelebA dataset and put into data/celeba/img_align_celeba.zip')
-		print('Download link: https://drive.google.com/uc?export=download&confirm=ZPr6&id=0B7EVK8r0v71pZjFTYXZWM3FlRnM')
-		exit()
+		print('Downloading CelebA dataset')
+		download_file_from_google_drive('0B7EVK8r0v71pZjFTYXZWM3FlRnM', zip_data_path)
 	if not glob(raw_data_path):
 		print('Extracting CelebA dataset')
 		with zipfile.ZipFile(zip_data_path, 'r') as zip_ref:
