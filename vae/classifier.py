@@ -12,25 +12,26 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
 def main():
-	parser = argparse.ArgumentParser()
-	parser.add_argument('--latent_dims', type=int, nargs='?', default=256)
-	parser.add_argument('--learning_rate', type=float, nargs='?', default=1e-4)
-	parser.add_argument('--dataset', type=str, nargs='?', default = 'svhn')
-	parser.add_argument('--epochs', type=int, nargs='?', default = 20)
-	parser.add_argument('--model', type=str, nargs='?', default='variational')
-	parser.add_argument('--type', type=str, nargs='?', default='conv')
-	parser.add_argument('--batch_size', type=int, nargs='?', default=32)
-	parser.add_argument('--runs', type=int, nargs='?', default=1)
+	# parser = argparse.ArgumentParser()
+	# parser.add_argument('--latent_dims', type=int, nargs='?', default=256)
+	# parser.add_argument('--learning_rate', type=float, nargs='?', default=1e-4)
+	# parser.add_argument('--dataset', type=str, nargs='?', default = 'svhn')
+	# parser.add_argument('--epochs', type=int, nargs='?', default = 20)
+	# parser.add_argument('--model', type=str, nargs='?', default='variational')
+	# parser.add_argument('--type', type=str, nargs='?', default='conv')
+	# parser.add_argument('--batch_size', type=int, nargs='?', default=32)
+	# parser.add_argument('--runs', type=int, nargs='?', default=1)
 
-	args = parser.parse_args()
-	BATCH_SIZE = args.batch_size
-	AUTOTUNE = tf.data.experimental.AUTOTUNE
+	# args = parser.parse_args()
+
+
+	BATCH_SIZE = 32 # args.batch_size
 	
-	config = dotdict({'learning_rate':args.learning_rate, 'latent_dims':args.latent_dims,
-						'dataset':args.dataset, 'epochs':args.epochs, 'batch_size':args.batch_size})
+	config = dotdict({'learning_rate':1e-4, 'latent_dims':256,
+						'dataset':'svhn', 'epochs':20, 'batch_size':32})
 	print('Config:',config)
 
-	train_dataset, test_dataset, input_shape = data.get_dataset(dataset=args.dataset, get_label=True)
+	train_dataset, test_dataset, input_shape = data.get_dataset(dataset=config.dataset, get_label=True)
 	train_dataset = train_dataset.concatenate(test_dataset)
 	train_dataset = train_dataset.shuffle(20000).batch(BATCH_SIZE).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 	test_dataset = test_dataset.batch(BATCH_SIZE).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
