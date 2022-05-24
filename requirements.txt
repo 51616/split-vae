@@ -4,6 +4,6 @@ tensorflow_addons==0.6.0
 matplotlib==3.1.1
 tensorflow_probability==0.7.0
 numpy==1.16.5
-tensorflow_gpu==2.0.0
+tensorflow_gpu==2.6.4
 requests==2.21.0
 scipy==1.2.1
