@@ -25,6 +25,7 @@ parser.add_argument('--patch_size', type=int, nargs='?', default=1)
 parser.add_argument('--augmentation', type=str, nargs='?', default='scramble')
 parser.add_argument('-no_label', action='store_true')
 parser.add_argument('--model', type=str, nargs='?', default='lgvae')  
+parser.add_argument('--type', type=str, nargs='?', default='conv')  
 parser.add_argument('--y_size', type=int, nargs='?', default=30)
 parser.add_argument('--tau', type=float, nargs='?', default = 0.4)
 parser.add_argument('--alpha', type=float, nargs='?', default = 40)
@@ -42,7 +43,7 @@ if args.allow_growth:
 
 
 BATCH_SIZE = args.batch_size
-AUTOTUNE = tf.data.experimental.AUTOTUNE
+AUTOTUNE = tf.data.AUTOTUNE
 
 args_dict = vars(args)
 config = dotdict(args_dict)
@@ -54,24 +55,40 @@ print('Config:',config)
 augmentor = Augmentator(type=config.augmentation,size=config.patch_size)
 train_dataset, test_dataset, input_shape = data.get_dataset(dataset=args.dataset,get_label = config.label)
 if config.label:
-  train_dataset = train_dataset.shuffle(20000).repeat().map(lambda x,y : (augmentor.augment(x),y), num_parallel_calls=8).batch(BATCH_SIZE).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
-  test_dataset = test_dataset.shuffle(20000).map(lambda x,y : (augmentor.augment(x),y), num_parallel_calls=8).batch(BATCH_SIZE).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+  train_dataset = train_dataset.shuffle(5000).repeat().map(lambda x,y : (augmentor.augment(x),y), num_parallel_calls=8).batch(BATCH_SIZE).prefetch(buffer_size=tf.data.AUTOTUNE)
+  test_dataset = test_dataset.shuffle(5000).map(lambda x,y : (augmentor.augment(x),y), num_parallel_calls=8).batch(32).prefetch(buffer_size=tf.data.AUTOTUNE)
 else:
-  train_dataset = train_dataset.shuffle(20000).repeat().map(augmentor.augment, num_parallel_calls=8).batch(BATCH_SIZE).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
-  test_dataset = test_dataset.shuffle(20000).map(augmentor.augment, num_parallel_calls=8).batch(BATCH_SIZE).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+  train_dataset = train_dataset.shuffle(5000).repeat().map(augmentor.augment, num_parallel_calls=8).batch(BATCH_SIZE).prefetch(buffer_size=tf.data.AUTOTUNE)
+  test_dataset = test_dataset.shuffle(5000).map(augmentor.augment, num_parallel_calls=8).batch(32).prefetch(buffer_size=tf.data.AUTOTUNE)
 
 if args.model=='lgvae':
-  model = LGVae(global_latent_dims = config.global_latent_dims, local_latent_dims = config.local_latent_dims, image_shape = input_shape)
-  optimizer = tf.keras.optimizers.Adam(learning_rate = config.learning_rate)
+  model = LGVae(global_latent_dims = config.global_latent_dims,
+                local_latent_dims = config.local_latent_dims,
+                image_shape = input_shape,
+                type = args.type)
+  # optimizer = tf.keras.optimizers.Adam(learning_rate=config.learning_rate)
+  
+  lr_schedule = tf.keras.optimizers.schedules.CosineDecay(config.learning_rate, decay_steps=config.training_steps,
+                                                          alpha=1e-3)
+  optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule, epsilon=1e-5,
+                                       weight_decay=1e-5,
+                                      #  use_ema=True, ema_momentum=0.999, ema_overwrite_frequency=32,
+                                       global_clipnorm=1.0
+                                      )
+  optimizer.exclude_from_weight_decay(var_names=['batch_normalization', 'bias'])
+
 elif args.model=='lggmvae':
   lr_schedule = tf.optimizers.schedules.ExponentialDecay(config.learning_rate,decay_steps=1000000,decay_rate=0.4,staircase=True)
   optimizer = tf.keras.optimizers.Adam(learning_rate = lr_schedule)
   model = LGGMVae(global_latent_dims = config.global_latent_dims, local_latent_dims = config.local_latent_dims, image_shape = input_shape, y_size=config.y_size, tau=config.tau)
+
 elif args.model=='gmvae':
   lr_schedule = tf.optimizers.schedules.ExponentialDecay(config.learning_rate,decay_steps=1000000,decay_rate=0.4,staircase=True)
   optimizer = tf.keras.optimizers.Adam(learning_rate = lr_schedule)
   model = GMVae(global_latent_dims = config.global_latent_dims, image_shape = input_shape, y_size=config.y_size, tau=config.tau)
-model(tf.zeros([8,input_shape[1],input_shape[2],6]))
+pred = model(tf.random.normal([8,input_shape[1],input_shape[2],6]))
+print([p.shape for p in pred] )
+# model.build(input_shape=(None,input_shape[1],input_shape[2],6))
 model.summary()
   
 print('Training local-global autoencoder')

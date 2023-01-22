@@ -120,12 +120,12 @@ def train_local_global_autoencoder(model, optimizer, dataset, train_dataset, tes
     @tf.function
     def train_step_lg_vae(model, images, optimizer):
         with tf.GradientTape() as tape:
-            x_mean, x_log_scale, z_x, z_mean_x, z_sig_x, z_x_hat, x_hat_mean, x_hat_log_scale, z_mean_x_hat, z_sig_x_hat = model(images)
+            x_mean, x_log_scale, z_x, z_mean_x, z_sig_x, z_x_hat, x_hat_mean, x_hat_log_scale, z_mean_x_hat, z_sig_x_hat = model(images, training=True)
 
             x, x_hat = images[:,:,:,:3], images[:,:,:,3:]
 
-            x_recon_loss = tf.reduce_mean(tf.reduce_sum(discretised_logistic_loss(x, x_mean,x_log_scale), axis=[1,2,3]))
-            x_hat_recon_loss = tf.reduce_mean(tf.reduce_sum(discretised_logistic_loss(x_hat, x_hat_mean,x_hat_log_scale), axis=[1,2,3]))
+            x_recon_loss = tf.reduce_mean(tf.reduce_mean(discretised_logistic_loss(x, x_mean,x_log_scale), axis=[1,2,3]))
+            x_hat_recon_loss = tf.reduce_mean(tf.reduce_mean(discretised_logistic_loss(x_hat, x_hat_mean,x_hat_log_scale), axis=[1,2,3]))
 
             total_kl_loss = config.beta * kl_divergence(tf.concat([z_mean_x,z_mean_x_hat], axis=1), tf.concat([z_sig_x,z_sig_x_hat] ,axis=1))
             x_kl_loss = kl_divergence(z_mean_x, z_sig_x)
@@ -150,8 +150,8 @@ def train_local_global_autoencoder(model, optimizer, dataset, train_dataset, tes
 
             x, x_hat = images[:,:,:,:3], images[:,:,:,3:]
 
-            x_recon_loss = tf.reduce_mean(tf.reduce_sum(discretised_logistic_loss(x, x_mean,x_log_scale), axis=[1,2,3]))
-            x_hat_recon_loss = tf.reduce_mean(tf.reduce_sum(discretised_logistic_loss(x_hat, x_hat_mean,x_hat_log_scale), axis=[1,2,3]))
+            x_recon_loss = tf.reduce_mean(tf.reduce_mean(discretised_logistic_loss(x, x_mean,x_log_scale), axis=[1,2,3]))
+            x_hat_recon_loss = tf.reduce_mean(tf.reduce_mean(discretised_logistic_loss(x_hat, x_hat_mean,x_hat_log_scale), axis=[1,2,3]))
 
 
             x_kl_loss = kl_divergence_two_gauss(z_mean_x, z_sig_x, z_prior_mean, z_prior_sig)
@@ -179,7 +179,7 @@ def train_local_global_autoencoder(model, optimizer, dataset, train_dataset, tes
 
             x = images[:,:,:,:3]
 
-            x_recon_loss = tf.reduce_mean(tf.reduce_sum(discretised_logistic_loss(x, x_mean,x_log_scale), axis=[1,2,3]))
+            x_recon_loss = tf.reduce_mean(tf.reduce_mean(discretised_logistic_loss(x, x_mean,x_log_scale), axis=[1,2,3]))
             x_kl_loss = kl_divergence_two_gauss(z_mean_x, z_sig_x, z_prior_mean, z_prior_sig)
 
             py = tf.nn.softmax(y_logits, axis=1)
@@ -202,8 +202,8 @@ def train_local_global_autoencoder(model, optimizer, dataset, train_dataset, tes
 
         x, x_hat = images[:,:,:,:3], images[:,:,:,3:]
 
-        x_recon_loss = tf.reduce_mean(tf.reduce_sum(discretised_logistic_loss(x, x_mean,x_log_scale), axis=[1,2,3]))
-        x_hat_recon_loss = tf.reduce_mean(tf.reduce_sum(discretised_logistic_loss(x_hat, x_hat_mean,x_hat_log_scale), axis=[1,2,3]))
+        x_recon_loss = tf.reduce_mean(tf.reduce_mean(discretised_logistic_loss(x, x_mean,x_log_scale), axis=[1,2,3]))
+        x_hat_recon_loss = tf.reduce_mean(tf.reduce_mean(discretised_logistic_loss(x_hat, x_hat_mean,x_hat_log_scale), axis=[1,2,3]))
 
         total_kl_loss = config.beta * kl_divergence(tf.concat([z_mean_x,z_mean_x_hat], axis=1), tf.concat([z_sig_x,z_sig_x_hat] ,axis=1))
         x_kl_loss = kl_divergence(z_mean_x, z_sig_x)
@@ -239,8 +239,8 @@ def train_local_global_autoencoder(model, optimizer, dataset, train_dataset, tes
 
         x, x_hat = images[:,:,:,:3], images[:,:,:,3:]
 
-        x_recon_loss = tf.reduce_mean(tf.reduce_sum(discretised_logistic_loss(x, x_mean,x_log_scale), axis=[1,2,3]))
-        x_hat_recon_loss = tf.reduce_mean(tf.reduce_sum(discretised_logistic_loss(x_hat, x_hat_mean,x_hat_log_scale), axis=[1,2,3]))
+        x_recon_loss = tf.reduce_mean(tf.reduce_mean(discretised_logistic_loss(x, x_mean,x_log_scale), axis=[1,2,3]))
+        x_hat_recon_loss = tf.reduce_mean(tf.reduce_mean(discretised_logistic_loss(x_hat, x_hat_mean,x_hat_log_scale), axis=[1,2,3]))
 
         x_kl_loss = kl_divergence_two_gauss(z_mean_x, z_sig_x, z_prior_mean, z_prior_sig)
         x_hat_kl_loss = kl_divergence_two_gauss(z_mean_x_hat, z_sig_x_hat, 0., 1.)
@@ -279,7 +279,7 @@ def train_local_global_autoencoder(model, optimizer, dataset, train_dataset, tes
 
         x = images[:,:,:,:3]
 
-        x_recon_loss = tf.reduce_mean(tf.reduce_sum(discretised_logistic_loss(x, x_mean,x_log_scale), axis=[1,2,3]))
+        x_recon_loss = tf.reduce_mean(tf.reduce_mean(discretised_logistic_loss(x, x_mean,x_log_scale), axis=[1,2,3]))
 
         x_kl_loss = kl_divergence_two_gauss(z_mean_x, z_sig_x, z_prior_mean, z_prior_sig)
 
@@ -310,7 +310,7 @@ def train_local_global_autoencoder(model, optimizer, dataset, train_dataset, tes
             images = train_data
         train_step(model, images, optimizer)
 
-        if (step%10000==0):
+        if (step%1000==0):
             print('Training time: {:.2f}'.format(time.time()-start))
 
             start = time.time()
