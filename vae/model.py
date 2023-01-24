@@ -1,6 +1,7 @@
 import tensorflow as tf
 import tensorflow.keras.layers as layers
-from tensorflow.keras.layers import Dense, Conv2D, Conv2DTranspose, BatchNormalization, Flatten, Dropout, ReLU
+from tensorflow.keras.layers import Dense, Conv2D, Conv2DTranspose, BatchNormalization, Flatten, Dropout, ReLU, AveragePooling2D, UpSampling2D
+from tensorflow_addons.layers import GELU
 from tensorflow.keras import Model
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -16,20 +17,20 @@ class Sampling(layers.Layer):
 class ResBlockEnc(layers.Layer):
     def __init__(self, filters, kernel_size=3, downsample=False):
         super().__init__()
-        self.layers = tf.keras.Sequential([
-            BatchNormalization(),
+        self.layers = tf.keras.Sequential([])
+        if downsample:
+            self.layers.add(AveragePooling2D(pool_size=(2, 2), padding='same'))
+        for layer in [
+            # BatchNormalization(),
             ReLU(),
-            Conv2D(filters, kernel_size=kernel_size, strides=1 if not downsample else 2, padding='same', use_bias=False),
-            BatchNormalization(),
+            Conv2D(filters, kernel_size=kernel_size, strides=1, padding='same', use_bias=False),
+            # BatchNormalization(),
             ReLU(),
             Conv2D(filters, kernel_size=kernel_size, strides=1, padding='same', use_bias=False)
-        ])
+        ]:
+            self.layers.add(layer)
         
-        self.downsample = tf.keras.Sequential([
-            BatchNormalization(),
-            ReLU(),
-            Conv2D(filters, kernel_size=kernel_size, strides=2, padding='same', use_bias=False)
-        ]) if downsample else tf.keras.Sequential([])
+        self.downsample = tf.keras.Sequential([AveragePooling2D(pool_size=(2, 2), padding='same')]) if downsample else tf.keras.Sequential([])
 
     def call(self, x, training=False):
         out = self.layers(x, training=training)
@@ -40,35 +41,32 @@ class ResBlockEnc(layers.Layer):
 class ResBlockDec(layers.Layer):
     def __init__(self, filters, kernel_size=3, upsample=False):
         super().__init__()
-        if not upsample:
-            self.conv1 = Conv2D(filters, kernel_size=kernel_size, strides=1, padding='same', use_bias=False)
-        else:
-            self.conv1 = Conv2DTranspose(filters, kernel_size=kernel_size, strides=2, padding='same', use_bias=False)
-        self.conv2 = Conv2DTranspose(filters, kernel_size=kernel_size, strides=1, padding='same', use_bias=False)
         
-        self.layers = tf.keras.Sequential([
-            BatchNormalization(),
-            ReLU(),
-            self.conv1,
-            BatchNormalization(),
-            ReLU(),
-            self.conv2
-        ])
+        self.layers = tf.keras.Sequential([])
+        if upsample:
+            self.layers.add(UpSampling2D(interpolation='nearest'))
         
-        self.upsample = tf.keras.Sequential([
-            BatchNormalization(),
+        for layer in [
+            # BatchNormalization(),
             ReLU(),
-            Conv2DTranspose(filters, kernel_size=kernel_size, strides=2, padding='same', use_bias=False)
-        ]) if upsample else tf.keras.Sequential([])
+            Conv2D(filters, kernel_size=kernel_size, strides=1, padding='same', use_bias=False),
+            # BatchNormalization(),
+            ReLU(),
+            Conv2D(filters, kernel_size=kernel_size, strides=1, padding='same', use_bias=False)
+        ]:
+            self.layers.add(layer)
+        
+        self.upsample = tf.keras.Sequential([UpSampling2D(interpolation='nearest')]) if upsample else tf.keras.Sequential([])
 
 
     def call(self, x, training=False):
         out = self.layers(x, training=training)
-        out += self.upsample(x, training=training)
+        x = self.upsample(x, training=training)
+        out += x
         return out
 
 class Encoder(layers.Layer):
-    def __init__(self, latent_dims = 32, variational = True, type = 'conv', y_size=None, tau=None):
+    def __init__(self, latent_dims = 32, variational = True, image_shape=None, type = 'conv', y_size=None, tau=None):
         super(Encoder, self).__init__()
         self.variational = variational
         self.latent_dims = latent_dims
@@ -102,20 +100,25 @@ class Encoder(layers.Layer):
         elif type == 'res_conv':
             self.input_net = Conv2D(filters=32, kernel_size=3, padding='same', use_bias=False, activation=None)
             
-            filters = [32, 32, 64, 64, 128]
-            num_blocks = [3, 3, 3, 3, 3]
-            kernel_sizes = [7,5,5,3,3]
+            filters = [32, 32, 64, 64, 128, 128]
+            num_blocks = [2, 2, 2, 2, 2, 2]
+            kernel_sizes = [7,5,5,3,3,3]
             blocks = []
             for block_idx, block_count in enumerate(num_blocks):
                 for bc in range(block_count):
-                    downsample = (bc == 0) # Subsample the first block of each group
+                    downsample = new_block = (bc == 0 and block_idx > 0) # Subsample the first block of each group
+                    if new_block:
+                        # make the input and the output share the same # channels
+                        blocks.append(Conv2D(filters=filters[block_idx], kernel_size=kernel_sizes[block_idx], padding='same', use_bias=False, activation=None))
                     blocks.append(ResBlockEnc(filters=filters[block_idx], kernel_size=kernel_sizes[block_idx], downsample=downsample))
             self.blocks = tf.keras.Sequential(blocks)
-            
+            downsample_factor = 2**(len(filters)-1)
+            last_kernel_size = (image_shape[1]//downsample_factor, image_shape[2]//downsample_factor)
+            self.blocks.add(Conv2D(filters=1024, kernel_size=last_kernel_size, padding='valid', use_bias=False, activation=None))
             self.do1 = Dropout(0.1)
             self.do2 = Dropout(0.1)
             self.dense1 = Dense(1024, activation = 'relu')
-            self.dense2 = Dense(512, activation = 'relu')
+            self.dense2 = Dense(1024, activation = 'relu')
             self.e_mean = Dense(latent_dims, activation = None)
             self.e_sd = Dense(latent_dims, activation = 'softplus') #, kernel_initializer=tf.initializers.TruncatedNormal(),bias_initializer=tf.keras.initializers.constant(-1)
             self.sampling = Sampling()
@@ -265,21 +268,24 @@ class ResDecoder(layers.Layer):
         # self.d3 = Dense(self.image_shape[1]//32*self.image_shape[2]//32*16, activation = 'relu')
         # self.bn3 = BatchNormalization()
         self.layers = tf.keras.Sequential([
-            Dense(256, activation = 'relu'),
-            BatchNormalization(),
-            Dense(512, activation = 'relu'),
-            BatchNormalization(),
-            Dense(self.image_shape[1]//32*self.image_shape[2]//32*16, activation = 'relu'),
-            BatchNormalization()
+            Dense(1024, activation = 'relu'),
+            # BatchNormalization(),
+            Dense(1024, activation = 'relu'),
+            # BatchNormalization(),
+            Dense(self.image_shape[1]//32*self.image_shape[2]//32*64, activation = 'relu'),
+            # BatchNormalization()
         ])
-        
-        filters = [128, 64, 64, 32, 32]
-        num_blocks = [3, 3, 3, 3, 3]
-        kernel_sizes = [3,3,5,5,7]
+            
+        filters = [128,128, 64, 64, 32, 32]
+        num_blocks = [2, 2, 2, 2, 2, 2]
+        kernel_sizes = [3,3,3,5,5,7]
         blocks = []
         for block_idx, block_count in enumerate(num_blocks):
             for bc in range(block_count):
-                upsample = (bc == 0) # upsample the first block of each group
+                upsample = new_block = (bc == 0 and block_idx > 0) # upsample the first block of each group
+                if new_block:
+                    # make the input and the output share the same # channels
+                    blocks.append(Conv2D(filters=filters[block_idx], kernel_size=kernel_sizes[block_idx], padding='same', use_bias=False, activation=None))
                 blocks.append(ResBlockDec(filters=filters[block_idx], kernel_size=kernel_sizes[block_idx], upsample=upsample))
                 
         self.blocks = tf.keras.Sequential(blocks)
@@ -288,7 +294,7 @@ class ResDecoder(layers.Layer):
     def call(self, x, training=False):
         # x = self.d3(self.d2(self.d1(x)))
         x = self.layers(x, training=training)
-        x = tf.reshape(x, [-1, self.image_shape[1]//32, self.image_shape[2]//32, 16])
+        x = tf.reshape(x, [-1, self.image_shape[1]//32, self.image_shape[2]//32, 64])
         x = self.input_net(x)
         x = self.blocks(x, training=training)
         out = self.out(x)
@@ -304,8 +310,8 @@ class LGVae(Model):
         self.variational = variational
         self.image_shape = image_shape
         # self.encoder_x = Encoder(latent_dims = global_latent_dims, type='res_conv')
-        self.encoder_x = Encoder(latent_dims = global_latent_dims, type=type)
-        self.encoder_x_hat = Encoder(latent_dims = local_latent_dims)
+        self.encoder_x = Encoder(latent_dims = global_latent_dims, image_shape=image_shape, type=type)
+        self.encoder_x_hat = Encoder(latent_dims = local_latent_dims, image_shape=image_shape)
 
         if type=='res_conv':
             self.decoder_x = ResDecoder(latent_dims = global_latent_dims + local_latent_dims, image_shape = image_shape)

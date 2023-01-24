@@ -19,6 +19,8 @@ def get_dataset(dataset='mnist', get_label=False):
 		return get_celeba_tfrec(size=64)
 	elif dataset.upper()=='CELEBAHQ':
 		return get_celebahq_tfrec()
+	elif dataset.upper()=='FFHQ':
+		return get_ffhq_tfrec()
 	else:
 		raise NotImplementedError('Dataset doesn\'t exit')
 
@@ -193,7 +195,62 @@ def get_celebahq_tfrec():
 	
 	return train_dataset, test_dataset, [-1,size,size,3]
 
+def create_ffhq_tfrec():
+	def load_and_preprocess_image(path):
+		image = tf.io.read_file(path)
+		return preprocess_image(image)
+
+	def preprocess_image(image):
+		image = tf.image.decode_jpeg(image, channels=3)
+		# image = tf.image.resize_with_crop_or_pad(image,178,178)
+		image = tf.image.resize(image, [256, 256])
+		image = image/255. * 2 -1
+		return image
+
+	files = glob('data/ffhq/resized/*.jpg')
+	test_files = files[:len(files)//10]
+	train_files = files[len(files)//10:]
+
+	path_train = tf.data.Dataset.from_tensor_slices(train_files).map(load_and_preprocess_image).map(tf.io.serialize_tensor)
+	path_test = tf.data.Dataset.from_tensor_slices(test_files).map(load_and_preprocess_image).map(tf.io.serialize_tensor)
+
+	tfrec = tf.data.experimental.TFRecordWriter('data/ffhq/train_256x256.tfrec')
+	tfrec.write(path_train)
+
+	tfrec = tf.data.experimental.TFRecordWriter('data/ffhq/test_256x256.tfrec')
+	tfrec.write(path_test)
+
+def get_ffhq_tfrec():
+	size = 256
+	data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data/ffhq/')
+	raw_data_path = os.path.join(data_path, 'resized/')
+	training_data_path = os.path.join(data_path, 'train_256x256.tfrec')
+	test_data_path = os.path.join(data_path, 'test_256x256.tfrec')
+
+	# if not os.path.exists(data_path):
+	# 	print('data folder doesn\'t exist, create data folder')
+	# 	Path(data_path).mkdir(parents=True, exist_ok=True)
+	# if not glob(zip_data_path):
+	# 	import gdown
+	# 	print('Downloading CelebA dataset')
+	# 	gdown.download(id='1badu11NqxGf6qM3PTTooQDJvQbejgbTv',output=zip_data_path, quiet=False)
+	if not glob(raw_data_path):
+		raise FileNotFoundError('Please download FFHQ dataset from https://www.kaggle.com/datasets/xhlulu/flickrfaceshq-dataset-nvidia-resized-256px?resource=download and extract it to data/ffhq/')
+	if not glob(training_data_path) or not glob(test_data_path):
+		print('Creating FFHQ TFrecord')
+		create_ffhq_tfrec()
+	
+	def parse(x):
+		result = tf.io.parse_tensor(x, out_type=tf.float32)
+		result = tf.reshape(result, [size, size, 3])
+		return result
+	train_dataset = tf.data.TFRecordDataset('data/ffhq/train_256x256.tfrec').map(parse, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+	test_dataset = tf.data.TFRecordDataset('data/ffhq/test_256x256.tfrec').map(parse, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+	
+	return train_dataset, test_dataset, [-1,size,size,3]
+
 if __name__=='__main__':
 	get_svhn()
 	get_celeba_tfrec(64)
- 
+	get_celebahq_tfrec()
+	get_ffhq_tfrec()

@@ -310,7 +310,7 @@ def train_local_global_autoencoder(model, optimizer, dataset, train_dataset, tes
             images = train_data
         train_step(model, images, optimizer)
 
-        if (step%1000==0):
+        if (step%10000==0):
             print('Training time: {:.2f}'.format(time.time()-start))
 
             start = time.time()
